@@ -1,0 +1,755 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum Genero {
+  masculino
+  femenino
+  otro
+  no_informa
+}
+
+enum EstadoSuscripcion {
+  reservada
+  confirmada
+  cancelada
+}
+
+enum EstadoReserva {
+  reservada
+  ingresada
+  cancelada
+  ausente
+}
+
+
+
+// Existing System Tables
+model SegMnu {
+  cod_menu     Int       @id @default(autoincrement())
+  nombre_menu  String
+  
+  // Audit
+  usuario_alta String?
+  fecha_alta   DateTime  @default(now())
+  usuario_mod  String?
+  fecha_mod    DateTime? @updatedAt
+
+  // Relations
+  detalles     SegMnud[]
+  perfiles     SegPer[]
+
+  @@map("segmnu")
+}
+
+model SegMnud {
+  cod_menu       Int
+  cod_detalle    Int
+  nombre         String
+  url            String?
+  icono          String?
+  cod_menu_padre Int?
+  det_orden      Int?      @default(0)
+  estado         String    @default("A") // A=Activo, I=Inactivo
+
+  // Audit
+  usuario_alta   String?
+  fecha_alta     DateTime  @default(now())
+  usuario_mod    String?
+  fecha_mod      DateTime? @updatedAt
+
+  // Relations
+  menu           SegMnu    @relation(fields: [cod_menu], references: [cod_menu])
+
+  @@id([cod_menu, cod_detalle])
+  @@map("segmnud")
+}
+
+model SegPer {
+  cod_perfil    Int       @id @default(autoincrement())
+  nombre_perfil String
+  cod_menu      Int
+
+  // Audit
+  usuario_alta  String?
+  fecha_alta    DateTime  @default(now())
+  usuario_mod   String?
+  fecha_mod     DateTime? @updatedAt
+
+  // Relations
+  menu          SegMnu    @relation(fields: [cod_menu], references: [cod_menu])
+  usuarios      SegUsu[]
+
+  @@map("segper")
+}
+
+model SegUsu {
+  email            String    @id
+  nombre           String
+  fecha_nacimiento DateTime?
+  telefono         String?
+  cod_perfil       Int
+  estado           String    @default("A") // A=Activo, I=Inactivo
+  password         String    // Contraseña encriptada
+  primer_ingreso   Boolean   @default(true) // true = debe cambiar contraseña
+  reset_token      String?   // Token para recuperación de contraseña
+  reset_token_expiry DateTime? // Expiración del token
+
+  // Audit
+  usuario_alta     String?
+  fecha_alta       DateTime  @default(now())
+  usuario_mod      String?
+  fecha_mod        DateTime? @updatedAt
+
+  // Relations
+  perfil           SegPer    @relation(fields: [cod_perfil], references: [cod_perfil])
+
+  @@map("segusu")
+}
+
+model SegEmailLog {
+  id              Int      @id @default(autoincrement())
+  destinatario    String
+  asunto          String
+  estado          String   // 'EXITOSO' o 'ERROR'
+  mensaje_error   String?  @db.Text
+  fecha_envio     DateTime @default(now())
+  usuario_alta    String?
+  
+  @@map("seg_email_log")
+}
+
+model ParImg {
+  img_cod      Int      @id @default(autoincrement())
+  img_tip      String   @db.VarChar(2)  // LA=Logo Acceso, LP=Logo Principal, LF=Logo Favicon, LR=Logo Reportes, FS=Fondo Sistema
+  img_nombre   String   @db.VarChar(100)
+  img_data     String   @db.Text  // Imagen en formato base64
+  img_mime     String   @db.VarChar(50)  // image/png, image/jpeg, etc.
+  estado       String   @default("A") @db.Char(1)
+  
+  // Audit
+  usuario_alta String   @db.VarChar(100)
+  fecha_alta   DateTime @default(now())
+  usuario_mod  String?  @db.VarChar(100)
+  fecha_mod    DateTime @updatedAt
+
+  @@map("parimg")
+}
+
+model ParEmp {
+  emp_cod       Int      @id @db.Integer
+  emp_nom       String   @db.VarChar(50)
+  emp_ruc       String   @db.VarChar(15)
+  estado        String   @default("A") @db.Char(1)
+  
+  // Audit
+  usuario_alta  String   @db.VarChar(100)
+  fecha_alta    DateTime @default(now())
+  usuario_mod   String?  @db.VarChar(100)
+  fecha_mod     DateTime @updatedAt
+
+  @@map("paremp")
+}
+
+model AlumnoCat {
+  aluCatCod    Int      @id @db.SmallInt
+  aluCatDsc    String   @db.VarChar(50)
+  
+  // Audit
+  usuario_alta String   @db.VarChar(100)
+  fecha_alta   DateTime @default(now())
+  usuario_mod  String?  @db.VarChar(100)
+  fecha_mod    DateTime @updatedAt
+
+  // Relations
+  alumnos      Alumno[]
+
+  @@map("alumnos_cat")
+}
+
+model Alumno {
+  aluNroD      String     @id @map("alunrod") @db.VarChar(15)
+  aluNom       String     @map("alunom") @db.VarChar(50)
+  aluTel       String     @map("alutel") @db.VarChar(15)
+  aluMail      String     @map("alumail") @db.VarChar(100)
+  aluFNac      DateTime   @map("alufnac") @db.Date
+  aluEdad      Int        @map("aluedad") @db.SmallInt
+  aluRuc       String?    @map("aluruc") @db.VarChar(15)
+  aluRSoc      String?    @map("alursoc") @db.VarChar(100)
+  aluCatCod    Int?       @map("alucatcod") @db.SmallInt
+  aluEst       String     @default("A") @map("aluest") @db.Char(1)
+  aluMotIn     String?    @map("alumotin") @db.VarChar(200)
+
+  // Campos adicionales
+  aluTipDoc    String?    @map("tipo_documento")
+  aluGen       Genero?    @map("genero")
+  aluDir       String?    @map("direccion")
+  aluConNom    String?    @map("contacto_emergencia_nombre")
+  aluConTel    String?    @map("contacto_emergencia_telefono")
+  aluConNom2   String?    @map("contacto_emergencia_nombre_2")
+  aluConTel2   String?    @map("contacto_emergencia_telefono_2")
+  aluSeguro    String?    @map("seguro_medico") @db.VarChar(100)
+  aluApto      Boolean    @default(false) @map("apto_medico")
+  aluFoto      String?    @map("foto_url") @db.Text
+  aluMeta      Json?      @default("{}") @map("metadata")
+  aluFIng      DateTime?  @map("fecha_ingreso") @db.Date
+  
+  // Audit
+  usuario_alta String     @map("usuario_alta") @db.VarChar(100)
+  fecha_alta   DateTime   @default(now()) @map("fecha_alta")
+  usuario_mod  String?    @map("usuario_mod") @db.VarChar(100)
+  fecha_mod    DateTime   @updatedAt @map("fecha_mod")
+
+  // Relations
+  categoria    AlumnoCat? @relation(fields: [aluCatCod], references: [aluCatCod])
+  suscripciones Suscripcion[]
+  reservas      Reserva[]
+  asistencias   Asistencia[]
+  evaluaciones  Evaluacion[]
+  pagos         Pago[]
+  ventas        Venta[]
+  agendamientos Agendamiento[]
+
+  @@map("alumnos")
+}
+
+model Agendamiento {
+  aluNroD      String   @map("alunrod") @db.VarChar(15)
+  age_fec      DateTime @db.Date
+  age_hor      String   @db.VarChar(5)
+  age_est      String   @default("Confirmado") @db.VarChar(20)
+  
+  // Audit
+  age_usu_ins  String   @db.VarChar(100)
+  age_fec_ins  DateTime @default(now())
+  age_usu_mod  String?  @db.VarChar(100)
+  age_fec_mod  DateTime @updatedAt
+
+  alumno       Alumno   @relation(fields: [aluNroD], references: [aluNroD])
+
+  @@id([aluNroD, age_fec, age_hor])
+  @@map("agendamientos")
+}
+
+model AluHstIn {
+  aluHId       Int      @id @default(autoincrement()) @map("aluhid")
+  aluHNroD     String   @map("aluhnrod") @db.VarChar(15)
+  aluHNom      String   @map("aluhnom") @db.VarChar(50)
+  aluHMot      String   @map("aluhmot") @db.VarChar(200)
+  
+  // Audit
+  usuario_alta String   @map("usuario_alta") @db.VarChar(100)
+  fecha_alta   DateTime @default(now()) @map("fecha_alta")
+  usuario_mod  String?  @map("usuario_mod") @db.VarChar(100)
+  fecha_mod    DateTime @updatedAt @map("fecha_mod")
+
+  @@map("aluhstin")
+}
+
+// New Tables (Refactor)
+
+model Sucursal {
+  id               BigInt   @id @default(autoincrement())
+  nombre           String
+  codigo           String?  @unique
+  direccion        String?
+  telefono         String?
+  email            String?
+  horario_manana_inicio String?  @db.VarChar(5)
+  horario_manana_fin    String?  @db.VarChar(5)
+  horario_tarde_inicio  String?  @db.VarChar(5)
+  horario_tarde_fin     String?  @db.VarChar(5)
+  horario_atencion String?
+  dias_atencion    String?
+  metadata         Json?    @default("{}")
+  activa           Boolean  @default(true)
+  creado_en        DateTime @default(now())
+
+  // Audit
+  usuario_alta     String?
+  fecha_alta       DateTime @default(now())
+  usuario_mod      String?
+  fecha_mod        DateTime? @updatedAt
+
+  // Relations
+  instructores     Instructor[]
+  clases           Clase[]
+  suscripciones    Suscripcion[]
+  productos        Producto[]
+  ventas           Venta[]
+
+  @@map("sucursales")
+}
+
+model Instructor {
+  instructor_nrod String   @id @db.VarChar(15)
+  sucursal_id     BigInt?
+  nombre          String   @db.VarChar(50)
+  email           String?
+  telefono        String?
+  metodo         String      @default("EF") @db.Char(2)
+  activo          Boolean  @default(true)
+  creado_en       DateTime @default(now())
+  actualizado_en  DateTime @default(now()) @updatedAt
+
+  // Audit
+  usuario_alta    String?
+  fecha_alta      DateTime @default(now())
+  usuario_mod     String?
+  fecha_mod       DateTime? @updatedAt
+
+  // Relations
+  sucursal        Sucursal? @relation(fields: [sucursal_id], references: [id])
+  clases          Clase[]
+
+  @@map("instructores")
+}
+
+
+
+model TipoClase {
+  id               BigInt   @id @default(autoincrement())
+  codigo           String?  @unique
+  nombre           String   @db.VarChar(100)
+  descripcion      String?  @db.Text
+  duracion_minutos Int      @default(50)
+  
+  // Audit fields
+  usuario_alta     String   @db.VarChar(50)
+  fecha_alta       DateTime @default(now())
+  usuario_mod      String?  @db.VarChar(50)
+  fecha_mod        DateTime @updatedAt
+
+  // Relations
+  clases           Clase[]
+
+  @@map("tipos_clase")
+}
+
+model Clase {
+  id            BigInt   @id @default(autoincrement())
+  sucursal_id   BigInt?
+  tipo_clase_id BigInt
+  instructor_id String?  @db.VarChar(15)
+  inicio        DateTime
+  fin           DateTime
+  capacidad     Int
+  estado        String?  @default("ACTIVO")
+  creado_en     DateTime @default(now())
+  actualizado_en DateTime @default(now()) @updatedAt
+
+  // Audit
+  usuario_alta  String?
+  fecha_alta    DateTime @default(now())
+  usuario_mod   String?
+  fecha_mod     DateTime? @updatedAt
+
+  // Relations
+  sucursal      Sucursal?  @relation(fields: [sucursal_id], references: [id], onDelete: Cascade)
+  tipo_clase    TipoClase  @relation(fields: [tipo_clase_id], references: [id])
+  instructor    Instructor? @relation(fields: [instructor_id], references: [instructor_nrod])
+  reservas      Reserva[]
+  asistencias   Asistencia[]
+
+  @@map("clases")
+}
+
+model Plan {
+  id                BigInt   @id @default(autoincrement())
+  codigo            String?  @unique
+  nombre            String
+  descripcion       String?
+  precio            Decimal?  @db.Decimal(10, 2)
+  ciclo_facturacion String?
+  clases_incluidas  Int?
+  activo            Boolean  @default(true)
+  creado_en         DateTime @default(now())
+
+  // Audit
+  usuario_alta      String?
+  fecha_alta        DateTime @default(now())
+  usuario_mod       String?
+  fecha_mod         DateTime? @updatedAt
+
+  suscripciones     Suscripcion[]
+  @@map("planes")
+}
+
+model Suscripcion {
+  id             BigInt            @id @default(autoincrement())
+  sucursal_id    BigInt?
+  alumno_id      String            @db.VarChar(15) // Linked to Alumno.aluNroD
+  plan_id        BigInt
+  estado         EstadoSuscripcion? @default(reservada)
+  metadata       Json?             @default("{}")
+  creado_en      DateTime          @default(now())
+  actualizado_en DateTime          @default(now()) @updatedAt
+
+  // Relations
+  sucursal       Sucursal? @relation(fields: [sucursal_id], references: [id])
+  alumno         Alumno    @relation(fields: [alumno_id], references: [aluNroD], onDelete: Cascade)
+  plan           Plan      @relation(fields: [plan_id], references: [id])
+  pagos          Pago[]
+  reservas       Reserva[]
+  horarios       SuscripcionHorario[]
+
+  @@map("suscripciones")
+}
+
+model SuscripcionHorario {
+  id             BigInt      @id @default(autoincrement())
+  suscripcion_id BigInt
+  dia_semana     Int         // 0=Domingo, 1=Lunes, ...
+  hora_inicio    String      // "HH:MM"
+  
+  suscripcion    Suscripcion @relation(fields: [suscripcion_id], references: [id], onDelete: Cascade)
+  
+  @@map("suscripciones_horarios")
+}
+
+model Pago {
+  id             BigInt      @id @default(autoincrement())
+  alumno_id      String?     @db.VarChar(15)
+  suscripcion_id BigInt?
+  monto          Decimal     @db.Decimal(10, 2)
+  metodo         String      @default("EF") @db.Char(2)
+  fecha_pago     DateTime?   @default(now())
+  referencia     String?
+  estado         String      @default("activo") // activo, anulado
+  motivo_anulacion String?   @db.VarChar(500)
+  creado_en      DateTime    @default(now())
+
+  // Relations
+  alumno         Alumno?      @relation(fields: [alumno_id], references: [aluNroD])
+  suscripcion    Suscripcion? @relation(fields: [suscripcion_id], references: [id])
+  facturas       Factura[]
+  ticket         Ticket?
+
+  @@map("pagos")
+}
+
+model Reserva {
+  id                 BigInt        @id @default(autoincrement())
+  alumno_id          String        @db.VarChar(15)
+  clase_id           BigInt
+  suscripcion_id     BigInt?
+  reservado_en       DateTime?     @default(now())
+  estado             EstadoReserva? @default(reservada)
+  motivo_cancelacion String?
+  cancelado_en       DateTime?
+  ingreso_en         DateTime?
+  posicion_espera    Int?
+  creado_en          DateTime      @default(now())
+  actualizado_en     DateTime      @default(now()) @updatedAt
+
+  // Relations
+  alumno             Alumno        @relation(fields: [alumno_id], references: [aluNroD], onDelete: Cascade)
+  clase              Clase         @relation(fields: [clase_id], references: [id], onDelete: Cascade)
+  suscripcion        Suscripcion?  @relation(fields: [suscripcion_id], references: [id])
+  asistencia         Asistencia?
+
+  @@unique([alumno_id, clase_id])
+  @@map("reservas")
+}
+
+model Asistencia {
+  id            BigInt   @id @default(autoincrement())
+  reserva_id    BigInt?  @unique
+  alumno_id     String   @db.VarChar(15)
+  clase_id      BigInt
+  estado        String?
+  registrado_en DateTime? @default(now())
+  notas         String?
+
+  // Relations
+  reserva       Reserva? @relation(fields: [reserva_id], references: [id], onDelete: Cascade)
+  alumno        Alumno   @relation(fields: [alumno_id], references: [aluNroD], onDelete: Cascade)
+  clase         Clase    @relation(fields: [clase_id], references: [id], onDelete: Cascade)
+
+  @@map("asistencias")
+}
+
+model Evaluacion {
+  id        BigInt   @id @default(autoincrement())
+  alumno_id String   @db.VarChar(15)
+  evaluador String?
+  fecha     DateTime? @default(now()) @db.Date
+  peso_kg   Decimal? @db.Decimal(5, 2)
+  altura_cm Decimal? @db.Decimal(5, 2)
+  imc       Decimal? @db.Decimal(5, 2)
+  notas     String?
+  datos     Json?    @default("{}")
+  creado_en DateTime @default(now())
+
+  // Relations
+  alumno    Alumno   @relation(fields: [alumno_id], references: [aluNroD], onDelete: Cascade)
+
+  @@map("evaluaciones")
+}
+
+model Producto {
+  id          BigInt   @id @default(autoincrement())
+  sucursal_id BigInt?
+  sku         String?  @unique
+  nombre      String
+  precio      Decimal  @db.Decimal(10, 2)
+  stock       Int?     @default(0)
+  activo      Boolean  @default(true)
+  metadata    Json?    @default("{}")
+  creado_en   DateTime @default(now())
+
+  // Relations
+  sucursal    Sucursal? @relation(fields: [sucursal_id], references: [id])
+  ventas_detalle VentaDetalle[]
+
+  @@map("productos")
+}
+
+model Venta {
+  id          BigInt      @id @default(autoincrement())
+  sucursal_id BigInt?
+  alumno_id   String?     @db.VarChar(15)
+  fecha       DateTime?   @default(now())
+  total       Decimal     @db.Decimal(10, 2)
+  metodo_pago String?     @db.Char(2)
+  creado_en   DateTime    @default(now())
+
+  // Relations
+  sucursal    Sucursal? @relation(fields: [sucursal_id], references: [id])
+  alumno      Alumno?   @relation(fields: [alumno_id], references: [aluNroD])
+  detalles    VentaDetalle[]
+
+  @@map("ventas")
+}
+
+model VentaDetalle {
+  id              BigInt   @id @default(autoincrement())
+  venta_id        BigInt?
+  producto_id     BigInt?
+  cantidad        Int?     @default(1)
+  precio_unitario Decimal  @db.Decimal(10, 2)
+
+  // Relations
+  venta           Venta?    @relation(fields: [venta_id], references: [id], onDelete: Cascade)
+  producto        Producto? @relation(fields: [producto_id], references: [id])
+
+  @@map("ventas_detalle")
+}
+
+// Invoice System Models
+
+model Establecimiento {
+  estab_codigo      Int       @id @db.Integer
+  estab_nombre      String    @db.VarChar(100)
+  estab_direccion   String?   @db.VarChar(200)
+  
+  // Audit
+  estab_usuario_alta String?
+  estab_fecha_alta   DateTime  @default(now())
+  estab_usuario_mod  String?
+  estab_fecha_mod    DateTime? @updatedAt
+  
+  // Relations
+  puntos_expedicion PuntoExpedicion[]
+  
+  @@map("establecimientos")
+}
+
+model PuntoExpedicion {
+  estab_codigo        Int       @db.Integer
+  punto_codigo        Int       @db.Integer
+  punto_descripcion   String?   @db.VarChar(100)
+  
+  // Audit
+  punto_usuario_alta  String?
+  punto_fecha_alta    DateTime  @default(now())
+  punto_usuario_mod   String?
+  punto_fecha_mod     DateTime? @updatedAt
+  
+  // Relations
+  establecimiento     Establecimiento @relation(fields: [estab_codigo], references: [estab_codigo])
+  facturas            Factura[]
+  
+  @@id([estab_codigo, punto_codigo])
+  @@map("puntos_expedicion")
+}
+
+model Timbrado {
+  timbrado_numero        BigInt    @id
+  timbrado_fecha_vencimiento DateTime @db.Date
+  timbrado_nro_desde     String    @db.Char(7)
+  timbrado_nro_hasta     String    @db.Char(7)
+  timbrado_nro_actual    String    @db.Char(7)
+  timbrado_estado        String    @default("A") @db.VarChar(20)
+  
+  // Audit
+  timbrado_usuario_alta  String?
+  timbrado_fecha_alta    DateTime  @default(now())
+  timbrado_usuario_mod   String?
+  timbrado_fecha_mod     DateTime? @updatedAt
+  
+  // Relations
+  facturas               Factura[]
+  
+  @@map("timbrados")
+}
+
+model Factura {
+  estab_codigo           Int       @db.Integer
+  punto_codigo           Int       @db.Integer
+  factura_numero         String    @db.Char(7)
+  timbrado_numero        BigInt
+  factura_fecha_emision  DateTime  @default(now()) @db.Date
+  factura_ruc_receptor   String?   @db.VarChar(20)
+  factura_nombre_receptor String?  @db.VarChar(200)
+  factura_total          Decimal   @db.Decimal(18, 2)
+  factura_total_letras   String?   @db.VarChar(500)
+  factura_estado         String    @default("emitida") @db.VarChar(20)
+  pago_id                BigInt?
+  
+  // Audit
+  factura_usuario_alta   String?
+  factura_fecha_alta     DateTime  @default(now())
+  factura_usuario_mod    String?
+  factura_fecha_mod      DateTime? @updatedAt
+  
+  // Relations
+  punto_expedicion       PuntoExpedicion @relation(fields: [estab_codigo, punto_codigo], references: [estab_codigo, punto_codigo])
+  timbrado               Timbrado        @relation(fields: [timbrado_numero], references: [timbrado_numero])
+  pago                   Pago?           @relation(fields: [pago_id], references: [id])
+  detalles               FacturaDet[]
+  
+  @@id([estab_codigo, punto_codigo, factura_numero])
+  @@index([factura_fecha_emision])
+  @@map("facturas")
+}
+
+model FacturaDet {
+  // Clave primaria compuesta
+  estab_codigo           Int       @db.Integer
+  punto_codigo           Int       @db.Integer
+  factura_numero         String    @db.Char(7)
+  facdet_linea           Int       @db.Integer
+  
+  // Datos del detalle
+  facdet_concepto        String    @db.VarChar(200)
+  facdet_cantidad        Int       @default(1) @db.Integer
+  facdet_precio_unitario Decimal   @db.Decimal(18, 2)
+  facdet_subtotal        Decimal   @db.Decimal(18, 2)
+  facdet_iva             Decimal   @db.Decimal(18, 2)
+  facdet_total           Decimal   @db.Decimal(18, 2)
+  
+  // Audit
+  facdet_usuario_alta    String?
+  facdet_fecha_alta      DateTime  @default(now())
+  facdet_usuario_mod     String?
+  facdet_fecha_mod       DateTime? @updatedAt
+  
+  // Relations
+  factura                Factura   @relation(fields: [estab_codigo, punto_codigo, factura_numero], references: [estab_codigo, punto_codigo, factura_numero], onDelete: Cascade)
+  
+  @@id([estab_codigo, punto_codigo, factura_numero, facdet_linea])
+  @@map("facturas_det")
+}
+
+model Ticket {
+  ticket_numero           String    @id @db.VarChar(20) // Formato: YYYYMMDDHHmmssSSS
+  ticket_fecha_emision    DateTime  @default(now())
+  ticket_nombre_receptor  String?   @db.VarChar(200)
+  ticket_total            Decimal   @db.Decimal(18, 2)
+  ticket_estado           String    @default("emitido") @db.VarChar(20) // emitido, anulado
+  pago_id                 BigInt?   @unique
+  
+  // Auditoría
+  usuario_alta            String?   @db.VarChar(100)
+  fecha_alta              DateTime  @default(now())
+  usuario_mod             String?   @db.VarChar(100)
+  fecha_mod               DateTime? @updatedAt
+  
+  // Relaciones
+  pago                    Pago?     @relation(fields: [pago_id], references: [id])
+  detalles                TicketDet[]
+  
+  @@map("tickets")
+}
+
+model TicketDet {
+  ticket_numero           String    @db.VarChar(20)
+  ticket_linea            Int       @db.Integer
+  
+  // Datos del detalle
+  ticket_concepto         String    @db.VarChar(200)
+  ticket_cantidad         Int       @default(1) @db.Integer
+  ticket_precio_unitario  Decimal   @db.Decimal(18, 2)
+  ticket_subtotal         Decimal   @db.Decimal(18, 2) 
+  ticket_total            Decimal   @db.Decimal(18, 2)
+  
+  // Relaciones
+  ticket                  Ticket    @relation(fields: [ticket_numero], references: [ticket_numero], onDelete: Cascade)
+  
+  @@id([ticket_numero, ticket_linea])
+  @@map("tickets_det")
+}
+
+model Gasto {
+  gas_cod      Int       @id @default(autoincrement())
+  gas_dsc      String    @db.VarChar(200)
+  gas_imp      Decimal   @db.Decimal(18, 2)
+  gas_fecha    DateTime  @default(now()) @db.Date
+
+  // Audit
+  gas_usuario_alta String?   @db.VarChar(100)
+  gas_fecha_alta   DateTime  @default(now())
+  gas_usuario_mod  String?   @db.VarChar(100)
+  gas_fecha_mod    DateTime? @updatedAt
+
+  @@map("gastos")
+}
+
+model DiasHabiles {
+  diha_dia      String   @id @db.Char(2) // LU, MA, MI, JU, VI, SA, DO
+  
+  // Audit
+  diha_usu_alta String?  @db.VarChar(100)
+  diha_fec_alta DateTime @default(now())
+  diha_usu_mod  String?  @db.VarChar(100)
+  diha_fec_mod  DateTime? @updatedAt
+
+  @@map("dias_habiles")
+}
+
+model DiaExcepcion {
+  diex_fec      DateTime @id @db.Date // PK
+  diex_hde      String?  @db.VarChar(5) // HH:MM
+  diex_hha      String?  @db.VarChar(5) // HH:MM
+  diex_tdi      String   @default("N") @db.Char(1) // S=Sí, N=No (Todo el día)
+  diex_mot      String?  @db.VarChar(200) // Motivo
+
+  // Audit
+  diex_usu_alta String?  @db.VarChar(100)
+  diex_fec_alta DateTime @default(now())
+  diex_usu_mod  String?  @db.VarChar(100)
+  diex_fec_mod  DateTime? @updatedAt
+
+  @@map("dia_excepcion")
+}
+
+model Avisos {
+  avisos_cod         Int      @id @default(autoincrement())
+  avisos_texto       String   @db.Text
+  avisos_vencimiento DateTime? @db.Date
+  avisos_estado      String   @default("A") @db.Char(1)
+
+  // Audit
+  avisos_usuario_alta String?  @db.VarChar(100)
+  avisos_fecha_alta   DateTime @default(now())
+  avisos_usuario_mod  String?  @db.VarChar(100)
+  avisos_fecha_mod    DateTime? @updatedAt
+
+  @@map("avisos")
+}

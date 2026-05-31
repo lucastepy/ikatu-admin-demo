@@ -1,0 +1,9 @@
+Error querying: (psycopg2.errors.UndefinedTable) no existe la relación «parametros»
+LINE 2: FROM parametros 
+             ^
+
+[SQL: SELECT parametros.par_id AS parametros_par_id, parametros.par_codigo AS parametros_par_codigo, parametros.par_descripcion AS parametros_par_descripcion, parametros.par_valor AS parametros_par_valor, parametros.par_tenantid AS parametros_par_tenantid 
+FROM parametros 
+WHERE parametros.par_codigo = %(par_codigo_1)s]
+[parameters: {'par_codigo_1': 'EMP_LOGO_REPORTE'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)

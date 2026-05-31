@@ -1,0 +1,4 @@
+Error querying remote: relation "public.parametros" does not exist
+LINE 1: SELECT par_codigo, par_valor FROM public.parametros WHERE pa...
+                                          ^
+
