@@ -3,11 +3,11 @@ import { adminMasterService } from '../../services/adminMaster';
 import type { Plan } from '../../services/adminMaster';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { toast } from 'sonner';
-import { 
-  Rocket, 
-  Plus, 
-  Trash2, 
-  Edit2, 
+import {
+  Rocket,
+  Plus,
+  Trash2,
+  Edit2,
   XCircle,
   Banknote,
   Trash
@@ -28,7 +28,7 @@ export default function PlansPage() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const confirmAction = (title: string, message: string, onConfirm: () => void) => {
@@ -56,7 +56,7 @@ export default function PlansPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    
+
     try {
       setIsSubmitting(true);
       if (selectedPlan) {
@@ -103,7 +103,7 @@ export default function PlansPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Defina los niveles de acceso y límites de la plataforma SaaS.</p>
         </div>
-        <button 
+        <button
           onClick={() => {
             setSelectedPlan(null);
             setFormData({ nombre: '' });
@@ -133,7 +133,7 @@ export default function PlansPage() {
             </div>
 
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={() => {
                   setTarifasPlan(plan);
                   setShowTarifasModal(true);
@@ -143,7 +143,7 @@ export default function PlansPage() {
               >
                 <Banknote className="w-4 h-4" /> Tarifas
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setSelectedPlan(plan);
                   setFormData(plan);
@@ -153,7 +153,7 @@ export default function PlansPage() {
               >
                 <Edit2 className="w-4 h-4" /> Editar
               </button>
-              <button 
+              <button
                 onClick={() => handleDelete(plan.id!)}
                 className="bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white text-red-500 p-2.5 rounded-xl transition-all"
               >
@@ -175,21 +175,20 @@ export default function PlansPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-1 pb-4">
                 <label className="text-xs font-bold text-gray-500 uppercase">Nombre del Plan</label>
-                <input 
+                <input
                   required
                   value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full bg-background border border-border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
               <div className="pt-4 border-t border-border">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isSubmitting}
-                  className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all ${
-                    isSubmitting ? 'bg-gray-600 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
-                  }`}
+                  className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all ${isSubmitting ? 'bg-gray-600 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
+                    }`}
                 >
                   {isSubmitting ? 'Guardando...' : 'Guardar'}
                 </button>
@@ -200,14 +199,14 @@ export default function PlansPage() {
       )}
 
       {showTarifasModal && tarifasPlan && (
-        <ManageTarifasModal 
+        <ManageTarifasModal
           plan={plans.find(p => p.id === tarifasPlan.id) || tarifasPlan}
           onClose={() => setShowTarifasModal(false)}
           onRefresh={loadPlans}
         />
       )}
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
         message={confirmConfig.message}
@@ -238,7 +237,7 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const confirmAction = (title: string, message: string, onConfirm: () => void) => {
@@ -263,7 +262,7 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
         plan_cob_monto_base: parseNumber(newCobro.plan_cob_monto_base)
       });
       toast.success('Cobro agregado exitosamente');
-      onRefresh(); 
+      onRefresh();
       setNewCobro({ plan_cob_tipo_cobro: 'MENSUAL_FIJO', plan_cob_monto_base: '' });
     } catch (e) {
       toast.error('Error al agregar cobro');
@@ -352,11 +351,11 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-accent/20 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-card border border-border w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
+
         {/* Cabecera */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-indigo-500/5">
           <div>
-            <h3 className="text-xl font-bold flex items-center gap-2"><Banknote className="text-indigo-500"/> Tarifas: {plan.nombre}</h3>
+            <h3 className="text-xl font-bold flex items-center gap-2"><Banknote className="text-indigo-500" /> Tarifas: {plan.nombre}</h3>
             <p className="text-xs text-muted-foreground">Estructura de cobros y tramos del plan</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-foreground"><XCircle className="w-6 h-6" /></button>
@@ -364,17 +363,17 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
 
         {/* Contenido (Scrollable) */}
         <div className="p-6 overflow-y-auto flex-1 space-y-8 bg-background/50">
-          
+
           {/* Seccion 1: Crear Nuevo Cobro */}
           <div className="bg-card border border-border p-5 rounded-2xl">
             <h4 className="text-sm font-bold uppercase text-gray-500 mb-4">Agregar Nuevo Cobro</h4>
             <form onSubmit={handleCreateCobro} className="flex items-end gap-4">
               <div className="flex-1 space-y-1">
                 <label className="text-xs font-bold text-gray-400">TIPO DE COBRO</label>
-                <select 
+                <select
                   className="w-full bg-background border border-border rounded-xl px-4 py-2"
                   value={newCobro.plan_cob_tipo_cobro}
-                  onChange={(e) => setNewCobro({...newCobro, plan_cob_tipo_cobro: e.target.value})}
+                  onChange={(e) => setNewCobro({ ...newCobro, plan_cob_tipo_cobro: e.target.value })}
                 >
                   <option value="INICIAL">Setup / Inicial (Única vez)</option>
                   <option value="MENSUAL_FIJO">Mensual Fijo</option>
@@ -384,11 +383,11 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
               {newCobro.plan_cob_tipo_cobro !== 'MENSUAL_TRAMOS' && (
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-bold text-gray-400">MONTO BASE (Gs.)</label>
-                  <input 
+                  <input
                     type="text" required
                     className="w-full bg-background border border-border rounded-xl px-4 py-2"
                     value={newCobro.plan_cob_monto_base}
-                    onChange={(e) => setNewCobro({...newCobro, plan_cob_monto_base: formatNumber(e.target.value)})}
+                    onChange={(e) => setNewCobro({ ...newCobro, plan_cob_monto_base: formatNumber(e.target.value) })}
                   />
                 </div>
               )}
@@ -401,7 +400,7 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
           {/* Seccion 2: Lista de Cobros Existentes */}
           <div className="space-y-4">
             <h4 className="text-sm font-bold uppercase text-gray-500">Cobros Activos ({plan.cobros?.length || 0})</h4>
-            
+
             {plan.cobros?.length === 0 && (
               <p className="text-center py-6 text-gray-500 italic border border-dashed border-border rounded-2xl">
                 No hay reglas de cobro definidas para este plan.
@@ -410,7 +409,7 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
 
             {plan.cobros?.map(cobro => (
               <div key={cobro.plan_cob_id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-                
+
                 {/* Cabecera del Cobro */}
                 <div className="p-4 flex items-center justify-between bg-muted/20 border-b border-border">
                   <div className="flex items-center gap-3">
@@ -422,9 +421,9 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
                         editingCobroId === cobro.plan_cob_id ? (
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-sm text-gray-500">Gs.</span>
-                            <input 
+                            <input
                               autoFocus
-                              type="text" 
+                              type="text"
                               className="bg-background border border-indigo-500 rounded-md px-2 py-1 text-sm font-mono font-bold w-32"
                               value={editingCobroMonto}
                               onChange={(e) => setEditingCobroMonto(formatNumber(e.target.value))}
@@ -452,23 +451,23 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
                 {cobro.plan_cob_tipo_cobro === 'MENSUAL_TRAMOS' && (
                   <div className="p-4 bg-background">
                     <p className="text-xs font-bold uppercase text-gray-400 mb-3 ml-1">Configuración de Tramos</p>
-                    
+
                     {/* Lista de tramos de este cobro */}
                     <div className="space-y-2 mb-4">
                       {cobro.tramos?.map((tramo, index) => (
                         <div key={tramo.plan_cob_tra_id} className="flex items-center justify-between bg-muted/10 border border-border p-3 rounded-xl">
                           <div className="flex items-center gap-4 text-sm font-mono">
-                            <span className="text-gray-400">De:</span> 
+                            <span className="text-gray-400">De:</span>
                             <span className="font-bold">{tramo.plan_cob_tra_rango_desde} txs</span>
-                            <span className="text-gray-400">Hasta:</span> 
+                            <span className="text-gray-400">Hasta:</span>
                             <span className="font-bold">{tramo.plan_cob_tra_rango_hasta || '∞'} txs</span>
                             <span className="text-gray-400 ml-4">Costo:</span>
                             {editingTramoId === tramo.plan_cob_tra_id ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-500 font-bold">Gs.</span>
-                                <input 
+                                <input
                                   autoFocus
-                                  type="text" 
+                                  type="text"
                                   className="bg-background border border-indigo-500 rounded-md px-2 py-1 text-sm font-mono font-bold w-24"
                                   value={editingTramoMonto}
                                   onChange={(e) => setEditingTramoMonto(formatNumber(e.target.value))}
@@ -498,8 +497,8 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
                     {(!cobro.tramos || cobro.tramos.length === 0 || cobro.tramos[cobro.tramos.length - 1].plan_cob_tra_rango_hasta !== null) && (() => {
                       const nextDesde = (cobro.tramos && cobro.tramos.length > 0) ? cobro.tramos[cobro.tramos.length - 1].plan_cob_tra_rango_hasta! + 1 : 1;
                       return (
-                        <form 
-                          onSubmit={(e) => handleCreateTramo(e, cobro.plan_cob_id!, nextDesde)} 
+                        <form
+                          onSubmit={(e) => handleCreateTramo(e, cobro.plan_cob_id!, nextDesde)}
                           className="flex items-end gap-2 bg-indigo-500/5 p-3 rounded-xl border border-indigo-500/20"
                         >
                           <div className="flex-[0.5] space-y-1 opacity-60">
@@ -508,11 +507,11 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
                           </div>
                           <div className="flex-1 space-y-1">
                             <label className="text-[10px] font-bold text-gray-500">HASTA (Vacío = Infinito)</label>
-                            <input type="number" className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm" placeholder="∞" value={newTramo.plan_cob_id === cobro.plan_cob_id ? newTramo.rango_hasta : ''} onChange={(e) => setNewTramo({...newTramo, plan_cob_id: cobro.plan_cob_id!, rango_hasta: e.target.value})} />
+                            <input type="number" className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm" placeholder="∞" value={newTramo.plan_cob_id === cobro.plan_cob_id ? newTramo.rango_hasta : ''} onChange={(e) => setNewTramo({ ...newTramo, plan_cob_id: cobro.plan_cob_id!, rango_hasta: e.target.value })} />
                           </div>
                           <div className="flex-1 space-y-1">
                             <label className="text-[10px] font-bold text-gray-500">COSTO TRAMO (Gs.)</label>
-                            <input type="text" required className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-bold" value={newTramo.plan_cob_id === cobro.plan_cob_id ? newTramo.monto : ''} onChange={(e) => setNewTramo({...newTramo, plan_cob_id: cobro.plan_cob_id!, monto: formatNumber(e.target.value)})} />
+                            <input type="text" required className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-bold" value={newTramo.plan_cob_id === cobro.plan_cob_id ? newTramo.monto : ''} onChange={(e) => setNewTramo({ ...newTramo, plan_cob_id: cobro.plan_cob_id!, monto: formatNumber(e.target.value) })} />
                           </div>
                           <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg h-[34px]">
                             + Tramo
@@ -528,8 +527,8 @@ function ManageTarifasModal({ plan, onClose, onRefresh }: { plan: Plan; onClose:
 
         </div>
       </div>
-      
-      <ConfirmModal 
+
+      <ConfirmModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
         message={confirmConfig.message}

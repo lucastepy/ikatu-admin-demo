@@ -50,13 +50,6 @@ export default function MasterDashboard() {
     
     if (!sub.esta_activa) return { label: 'Suspendida', color: 'text-red-500', bg: 'bg-red-500/10' };
     
-    const today = new Date();
-    const expiry = sub.fecha_fin ? new Date(sub.fecha_fin) : null;
-    
-    if (expiry && expiry.getFullYear() > 1 && expiry < today) {
-      return { label: 'Vencida', color: 'text-orange-500', bg: 'bg-orange-500/10' };
-    }
-    
     return { label: 'Activa', color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
   };
 
@@ -71,7 +64,8 @@ export default function MasterDashboard() {
     expired: tenants.filter(t => getSubStatus(t.id!).label === 'Vencida').length,
     revenue: subscriptions.filter(s => s.esta_activa).reduce((acc, sub) => {
       const plan = planes.find(p => p.id === sub.plan_id);
-      return acc + (plan?.precio_mensual || 0);
+      const precio = plan?.cobros?.find(c => c.plan_cob_tipo_cobro === 'MENSUAL_FIJO')?.plan_cob_monto_base || 0;
+      return acc + precio;
     }, 0)
   };
 
@@ -179,7 +173,8 @@ export default function MasterDashboard() {
                 <tr><td colSpan={5} className="px-8 py-20 text-center text-gray-500">No se encontraron empresas registradas.</td></tr>
               ) : filteredTenants.map((t) => {
                 const subStatus = getSubStatus(t.id!);
-                const plan = planes.find(p => p.id === t.plan_id);
+                const sub = subscriptions.find(s => s.cliente_id === String(t.id));
+                const plan = planes.find(p => p.id === sub?.plan_id);
                 return (
                   <tr key={t.id} className="hover:bg-card/40 transition-colors group">
                     <td className="px-8 py-5">
@@ -198,7 +193,7 @@ export default function MasterDashboard() {
                         <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full w-fit">{plan?.nombre || 'S/P'}</span>
                         {plan && (
                           <span className="text-[10px] text-gray-500 font-mono ml-1">
-                            Gs. {new Intl.NumberFormat('es-PY').format(plan.precio_mensual)}
+                            Gs. {new Intl.NumberFormat('es-PY').format(plan.cobros?.find(c => c.plan_cob_tipo_cobro === 'MENSUAL_FIJO')?.plan_cob_monto_base || 0)}
                           </span>
                         )}
                        </div>

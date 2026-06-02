@@ -1,7 +1,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '../services/api';
-import type { InitialDataResponse } from '../types/initialData';
+export interface InitialDataResponse {
+    [key: string]: any;
+}
 
 interface InitialDataContextType {
     data: InitialDataResponse | null;

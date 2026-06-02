@@ -436,6 +436,24 @@ export default function TenantsPage() {
                     <span className="text-sm font-mono">{formData.db_schema || 'tenant_...'}</span>
                   </div>
                 </div>
+
+                {selectedTenant && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Estado</label>
+                    <div className="flex items-center gap-3 bg-background/50 border border-border rounded-xl px-4 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({...formData, estado: !formData.estado})}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${formData.estado ? 'bg-emerald-500' : 'bg-red-500'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${formData.estado ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                      <span className={`text-sm font-bold ${formData.estado ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {formData.estado ? 'ACTIVO' : 'SUSPENDIDO'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {!selectedTenant && (
