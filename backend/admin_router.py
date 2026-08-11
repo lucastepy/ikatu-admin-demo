@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from database import get_db
 import admin_models as models
 import admin_schemas as schemas
-from typing import List
+from typing import List, Optional
 from tenancy import create_tenant_schema, init_tenant_db, seed_tenant_admin, seed_reference_data, validate_source_schema
 import uuid
 import auth
@@ -148,9 +148,55 @@ def update_admin_profile(
 
 # --- Audit Logs ---
 
-@router.get("/audit-logs", response_model=List[schemas.AuditoriaAdminRead])
-def get_audit_logs(db: Session = Depends(get_db), current_admin: models.UsuarioAdmin = Depends(get_current_admin)):
-    return db.query(models.AuditoriaAdmin).options(joinedload(models.AuditoriaAdmin.admin)).order_by(models.AuditoriaAdmin.fecha.desc()).limit(100).all()
+@router.get("/audit-logs")
+def get_audit_logs(
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin),
+    skip: int = 0,
+    limit: int = 20,
+    fecha_desde: Optional[str] = None,
+    fecha_hasta: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    from sqlalchemy import text
+    from datetime import datetime, date, timedelta
+
+    query = db.query(models.AuditoriaAdmin).options(joinedload(models.AuditoriaAdmin.admin))
+
+    # Default: only today if no dates provided
+    if fecha_desde:
+        try:
+            dt_desde = datetime.strptime(fecha_desde, "%Y-%m-%d")
+            query = query.filter(models.AuditoriaAdmin.fecha >= dt_desde)
+        except ValueError:
+            pass
+    else:
+        dt_desde = datetime.combine(date.today(), datetime.min.time())
+        query = query.filter(models.AuditoriaAdmin.fecha >= dt_desde)
+
+    if fecha_hasta:
+        try:
+            dt_hasta = datetime.strptime(fecha_hasta, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(models.AuditoriaAdmin.fecha < dt_hasta)
+        except ValueError:
+            pass
+    else:
+        dt_hasta = datetime.combine(date.today(), datetime.min.time()) + timedelta(days=1)
+        query = query.filter(models.AuditoriaAdmin.fecha < dt_hasta)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            models.AuditoriaAdmin.detalle.ilike(search_term) |
+            models.AuditoriaAdmin.accion.ilike(search_term) |
+            models.AuditoriaAdmin.recurso.ilike(search_term)
+        )
+
+    total = query.count()
+    items = query.order_by(models.AuditoriaAdmin.fecha.desc()).offset(skip).limit(limit).all()
+
+    return {"total": total, "items": items}
+
 
 @router.get("/db-schemas", response_model=List[str])
 def list_db_schemas(db: Session = Depends(get_db), current_admin: models.UsuarioAdmin = Depends(get_current_admin)):
@@ -437,8 +483,13 @@ def create_maestro_cliente(cliente: schemas.MaestroClienteCreate, request: Reque
     slug = cliente.url_slug.lower().strip().replace(" ", "-")
     db_schema = cliente.db_schema.lower().strip()
     
-    if db.query(models.MaestroCliente).filter(models.MaestroCliente.url_slug == slug).first():
-        raise HTTPException(status_code=400, detail=f"El slug '{slug}' ya está en uso.")
+    existing_cliente = db.query(models.MaestroCliente).filter(models.MaestroCliente.url_slug == slug).first()
+    
+    if existing_cliente:
+        if not cliente.initialize_db:
+            return existing_cliente
+        else:
+            raise HTTPException(status_code=400, detail=f"El slug '{slug}' ya está en uso.")
     
     if db.query(models.MaestroCliente).filter(models.MaestroCliente.db_schema == db_schema).first():
         raise HTTPException(status_code=400, detail=f"El esquema '{db_schema}' ya está en uso.")
@@ -679,3 +730,362 @@ def delete_suscripcion(susc_id: int, request: Request, db: Session = Depends(get
     )
 
     return {"message": "Suscripción eliminada"}
+
+# --- Parámetros del Sistema ---
+
+@router.get("/parametros-sistema", response_model=schemas.PaginatedParametrosSistema)
+def get_parametros_sistema(
+    skip: int = 0,
+    limit: int = 10,
+    search: str = None,
+    tenant: str = None,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    query = db.query(models.ParametrosSistema)
+    if search:
+        query = query.filter(
+            (models.ParametrosSistema.par_sis_codigo.ilike(f"%{search}%")) |
+            (models.ParametrosSistema.par_sis_descripcion.ilike(f"%{search}%"))
+        )
+    if tenant:
+        query = query.filter(models.ParametrosSistema.par_sis_tenantid == tenant)
+    
+    total = query.count()
+    items = query.order_by(models.ParametrosSistema.par_sis_codigo.asc()).offset(skip).limit(limit).all()
+    
+    return {"total": total, "items": items}
+
+@router.post("/parametros-sistema", response_model=schemas.ParametrosSistemaResponse)
+def create_parametro_sistema(
+    request: Request,
+    param: schemas.ParametrosSistemaCreate,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    codigo_upper = param.par_sis_codigo.upper()
+    existing = db.query(models.ParametrosSistema).filter(models.ParametrosSistema.par_sis_codigo == codigo_upper).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un parámetro con este código")
+    
+    new_param = models.ParametrosSistema(
+        par_sis_codigo=codigo_upper,
+        par_sis_descripcion=param.par_sis_descripcion,
+        par_sis_valor=param.par_sis_valor,
+        par_sis_tenantid=param.par_sis_tenantid,
+        par_sis_adjunta_archivo=param.par_sis_adjunta_archivo,
+        par_sis_usuario_alta=current_admin.username
+    )
+    db.add(new_param)
+    db.commit()
+    db.refresh(new_param)
+
+    log_admin_action(
+        db, current_admin.id, "CREATE", "parametros_sistema", str(new_param.par_sis_id), 
+        f"Creado parámetro de sistema '{new_param.par_sis_codigo}'", request=request
+    )
+
+    return new_param
+
+@router.put("/parametros-sistema/{par_id}", response_model=schemas.ParametrosSistemaResponse)
+def update_parametro_sistema(
+    request: Request,
+    par_id: int,
+    param: schemas.ParametrosSistemaUpdate,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    db_param = db.query(models.ParametrosSistema).filter(models.ParametrosSistema.par_sis_id == par_id).first()
+    if not db_param:
+        raise HTTPException(status_code=404, detail="Parámetro no encontrado")
+    
+    if param.par_sis_codigo:
+        param.par_sis_codigo = param.par_sis_codigo.upper()
+        if param.par_sis_codigo != db_param.par_sis_codigo:
+            existing = db.query(models.ParametrosSistema).filter(models.ParametrosSistema.par_sis_codigo == param.par_sis_codigo).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="El código de parámetro ya está en uso")
+    
+    old_data = {
+        "codigo": db_param.par_sis_codigo,
+        "descripcion": db_param.par_sis_descripcion,
+        "valor": db_param.par_sis_valor,
+        "tenantid": db_param.par_sis_tenantid,
+        "adjunta_archivo": db_param.par_sis_adjunta_archivo
+    }
+
+    update_data = param.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_param, key, value)
+    
+    db_param.par_sis_usuario_mod = current_admin.username
+    db.commit()
+    db.refresh(db_param)
+
+    new_data = {
+        "codigo": db_param.par_sis_codigo,
+        "descripcion": db_param.par_sis_descripcion,
+        "valor": db_param.par_sis_valor,
+        "tenantid": db_param.par_sis_tenantid,
+        "adjunta_archivo": db_param.par_sis_adjunta_archivo
+    }
+
+    log_admin_action(
+        db, current_admin.id, "UPDATE", "parametros_sistema", str(db_param.par_sis_id), 
+        f"Actualizado parámetro '{db_param.par_sis_codigo}'", anteriores=old_data, nuevos=new_data, request=request
+    )
+
+    return db_param
+
+@router.delete("/parametros-sistema/{par_id}")
+def delete_parametro_sistema(
+    request: Request,
+    par_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    db_param = db.query(models.ParametrosSistema).filter(models.ParametrosSistema.par_sis_id == par_id).first()
+    if not db_param:
+        raise HTTPException(status_code=404, detail="Parámetro no encontrado")
+    
+    nombre_param = db_param.par_sis_codigo
+    db.delete(db_param)
+    db.commit()
+
+    log_admin_action(
+        db, current_admin.id, "DELETE", "parametros_sistema", str(par_id), 
+        f"Eliminado parámetro '{nombre_param}'", request=request
+    )
+
+    return {"message": "Parámetro eliminado"}
+
+
+# --- Restricciones de Campos ---
+
+@router.get("/restricciones-campos", response_model=schemas.PaginatedRestriccionesCampos)
+def get_restricciones_campos(
+    skip: int = 0,
+    limit: int = 10,
+    search: str = "",
+    tenant: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    query = db.query(models.RestriccionCampo)
+    if tenant:
+        query = query.filter(models.RestriccionCampo.tenant == tenant)
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            (models.RestriccionCampo.tabla.ilike(search_filter)) |
+            (models.RestriccionCampo.columna.ilike(search_filter))
+        )
+    total = query.count()
+    items = query.order_by(models.RestriccionCampo.id.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "items": items}
+
+@router.get("/restricciones-campos/tenants")
+def get_restricciones_tenants(
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    try:
+        # Get schemas
+        schemas_query = db.execute(text("""
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name NOT IN ('public', 'information_schema') 
+              AND schema_name NOT LIKE 'pg_%'
+        """)).fetchall()
+        active_schemas = [r[0] for r in schemas_query]
+        
+        # Mapeo de maestro_clientes
+        mc_query = db.execute(text("""
+            SELECT url_slug, db_schema, nombre_comercial 
+            FROM public.maestro_clientes 
+            WHERE estado = true
+        """)).fetchall()
+        mc_map = {r[1]: (r[0], r[2]) for r in mc_query}
+        
+        tenants_info = []
+        for schema in active_schemas:
+            if schema in mc_map:
+                slug, nombre = mc_map[schema]
+                tenants_info.append({
+                    "schema": schema,
+                    "slug": slug,
+                    "nombre": nombre or slug
+                })
+            else:
+                tenants_info.append({
+                    "schema": schema,
+                    "slug": schema,
+                    "nombre": schema
+                })
+        return tenants_info
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener tenants: {str(e)}")
+
+@router.get("/restricciones-campos/tables")
+def get_restricciones_tables(
+    schema: str,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    try:
+        # Validate schema to prevent SQL Injection
+        schemas_query = db.execute(text("""
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name NOT IN ('public', 'information_schema') 
+              AND schema_name NOT LIKE 'pg_%'
+        """)).fetchall()
+        active_schemas = [r[0] for r in schemas_query]
+        
+        if schema not in active_schemas and schema != "public":
+            raise HTTPException(status_code=400, detail="Esquema inválido")
+            
+        res = db.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = :schema AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """), {"schema": schema}).fetchall()
+        return [r[0] for r in res]
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error al obtener tablas: {str(e)}")
+
+@router.get("/restricciones-campos/columns")
+def get_restricciones_columns(
+    schema: str,
+    table: str,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    try:
+        # Validate schema to prevent SQL Injection
+        schemas_query = db.execute(text("""
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name NOT IN ('public', 'information_schema') 
+              AND schema_name NOT LIKE 'pg_%'
+        """)).fetchall()
+        active_schemas = [r[0] for r in schemas_query]
+        
+        if schema not in active_schemas and schema != "public":
+            raise HTTPException(status_code=400, detail="Esquema inválido")
+            
+        res = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = :schema AND table_name = :table
+            ORDER BY ordinal_position
+        """), {"schema": schema, "table": table}).fetchall()
+        return [r[0] for r in res]
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error al obtener columnas: {str(e)}")
+
+@router.post("/restricciones-campos", response_model=schemas.RestriccionCampoRead)
+def create_restriccion_campo(
+    request: Request,
+    restriccion: schemas.RestriccionCampoCreate,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    existing = db.query(models.RestriccionCampo).filter(
+        models.RestriccionCampo.tenant == restriccion.tenant,
+        models.RestriccionCampo.tabla == restriccion.tabla,
+        models.RestriccionCampo.columna == restriccion.columna
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una restricción para este campo en este tenant")
+        
+    db_restriccion = models.RestriccionCampo(**restriccion.model_dump())
+    db.add(db_restriccion)
+    db.commit()
+    db.refresh(db_restriccion)
+    
+    log_admin_action(
+        db, current_admin.id, "CREATE", "restricciones_campos", str(db_restriccion.id),
+        f"Creada restricción en tabla '{restriccion.tabla}', columna '{restriccion.columna}' para tenant '{restriccion.tenant}'",
+        nuevos=restriccion.model_dump(), request=request
+    )
+    return db_restriccion
+
+@router.put("/restricciones-campos/{id}", response_model=schemas.RestriccionCampoRead)
+def update_restriccion_campo(
+    request: Request,
+    id: int,
+    restriccion: schemas.RestriccionCampoUpdate,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    db_restriccion = db.query(models.RestriccionCampo).filter(models.RestriccionCampo.id == id).first()
+    if not db_restriccion:
+        raise HTTPException(status_code=404, detail="Restricción no encontrada")
+        
+    old_data = {
+        "oculto": db_restriccion.oculto,
+        "editable": db_restriccion.editable,
+        "tenant": db_restriccion.tenant,
+        "tabla": db_restriccion.tabla,
+        "columna": db_restriccion.columna
+    }
+    
+    update_data = restriccion.model_dump(exclude_unset=True)
+    
+    # Check duplicate
+    tenant_val = update_data.get("tenant", db_restriccion.tenant)
+    tabla_val = update_data.get("tabla", db_restriccion.tabla)
+    columna_val = update_data.get("columna", db_restriccion.columna)
+    
+    existing = db.query(models.RestriccionCampo).filter(
+        models.RestriccionCampo.tenant == tenant_val,
+        models.RestriccionCampo.tabla == tabla_val,
+        models.RestriccionCampo.columna == columna_val,
+        models.RestriccionCampo.id != id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe otra restricción para este campo en este tenant")
+        
+    for key, value in update_data.items():
+        setattr(db_restriccion, key, value)
+        
+    db.commit()
+    db.refresh(db_restriccion)
+    
+    log_admin_action(
+        db, current_admin.id, "UPDATE", "restricciones_campos", str(id),
+        f"Actualizada restricción en tabla '{db_restriccion.tabla}', columna '{db_restriccion.columna}' para tenant '{db_restriccion.tenant}'",
+        anteriores=old_data, nuevos=update_data, request=request
+    )
+    return db_restriccion
+
+@router.delete("/restricciones-campos/{id}")
+def delete_restriccion_campo(
+    request: Request,
+    id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.UsuarioAdmin = Depends(get_current_admin)
+):
+    db_restriccion = db.query(models.RestriccionCampo).filter(models.RestriccionCampo.id == id).first()
+    if not db_restriccion:
+        raise HTTPException(status_code=404, detail="Restricción no encontrada")
+        
+    db.delete(db_restriccion)
+    db.commit()
+    
+    log_admin_action(
+        db, current_admin.id, "DELETE", "restricciones_campos", str(id),
+        f"Eliminada restricción en tabla '{db_restriccion.tabla}', columna '{db_restriccion.columna}' para tenant '{db_restriccion.tenant}'",
+        request=request
+    )
+    return {"status": "success"}
+

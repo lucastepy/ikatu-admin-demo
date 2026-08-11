@@ -10,6 +10,7 @@ export default function AdminLoginPage() {
         password: '',
     });
     const [loading, setLoading] = useState(false);
+    const [logo, setLogo] = useState<string | null>(null);
 
     useEffect(() => {
         // Redirect if already logged in as admin
@@ -17,6 +18,25 @@ export default function AdminLoginPage() {
         if (adminToken) {
             navigate('/admin', { replace: true });
         }
+
+        // Fetch logo
+        const fetchLogo = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || '/api';
+                const response = await fetch(`${apiUrl}/integration/parametro/LOGO_IKATUSOFT?tenant=ALL`, {
+                    headers: { 'X-API-Key': 'JwitpJyAhWNDHQOgiTTHS3EWsyEJipL97eiBdtra2aE' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.valor) {
+                        setLogo(data.valor);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching logo for login', err);
+            }
+        };
+        fetchLogo();
     }, [navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,9 +87,13 @@ export default function AdminLoginPage() {
             <div className="w-full max-w-md p-8 relative z-10">
                 <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden p-8">
                     <div className="flex flex-col items-center mb-8">
-                        <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 mb-4">
-                            <Shield className="w-10 h-10 text-foreground" />
-                        </div>
+                        {logo ? (
+                            <img src={logo} alt="IkatuSoft Logo" className="w-auto h-24 mb-4 object-contain" />
+                        ) : (
+                            <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 mb-4">
+                                <Shield className="w-10 h-10 text-foreground" />
+                            </div>
+                        )}
                         <h1 className="text-2xl font-bold text-foreground text-center">Master Admin</h1>
                         <p className="text-blue-400 text-sm font-medium tracking-wider uppercase mt-1">IkatuSoft SaaS Platform</p>
                     </div>

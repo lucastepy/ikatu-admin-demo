@@ -11,7 +11,9 @@ import {
   History,
   Monitor,
   Sun,
-  Moon
+  Moon,
+  Settings,
+  Lock
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -29,6 +31,8 @@ export default function MasterSidebar() {
     { name: 'Empresas / Tenants', path: '/admin/tenants', icon: Users },
     { name: 'Planes de Servicio', path: '/admin/planes', icon: Rocket },
     { name: 'Sistemas', path: '/admin/sistemas', icon: Monitor },
+    { name: 'Parámetros del Sistema', path: '/admin/parametros-sistema', icon: Settings },
+    { name: 'Restricciones de Campos', path: '/admin/restricciones-campos', icon: Lock },
     { name: 'Auditoría', path: '/admin/auditoria', icon: History },
     { name: 'Perfil / Seguridad', path: '/admin/perfil', icon: ShieldCheck },
   ];

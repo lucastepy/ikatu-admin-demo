@@ -168,6 +168,7 @@ class RestriccionCampoBase(BaseModel):
     columna: str
     oculto: bool = False
     editable: bool = True
+    tenant: Optional[str] = None
 
 class RestriccionCampoCreate(RestriccionCampoBase):
     pass
@@ -175,6 +176,7 @@ class RestriccionCampoCreate(RestriccionCampoBase):
 class RestriccionCampoUpdate(BaseModel):
     oculto: Optional[bool] = None
     editable: Optional[bool] = None
+    tenant: Optional[str] = None
 
 class RestriccionCampoRead(RestriccionCampoBase):
     id: int
@@ -182,9 +184,44 @@ class RestriccionCampoRead(RestriccionCampoBase):
     descripcion_columna: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+class PaginatedRestriccionesCampos(BaseModel):
+    total: int
+    items: List[RestriccionCampoRead]
+
 class TableMetadata(BaseModel):
     name: str
 
 class ColumnMetadata(BaseModel):
     name: str
     description: Optional[str] = None
+
+# --- Parámetros del Sistema ---
+class ParametrosSistemaBase(BaseModel):
+    par_sis_codigo: str
+    par_sis_descripcion: str
+    par_sis_valor: str
+    par_sis_tenantid: str
+    par_sis_adjunta_archivo: bool = False
+
+class ParametrosSistemaCreate(ParametrosSistemaBase):
+    pass
+
+class ParametrosSistemaUpdate(BaseModel):
+    par_sis_codigo: Optional[str] = None
+    par_sis_descripcion: Optional[str] = None
+    par_sis_valor: Optional[str] = None
+    par_sis_tenantid: Optional[str] = None
+    par_sis_adjunta_archivo: Optional[bool] = None
+
+class ParametrosSistemaResponse(ParametrosSistemaBase):
+    par_sis_id: int
+    par_sis_usuario_alta: Optional[str] = None
+    par_sis_fecha_alta: Optional[datetime] = None
+    par_sis_usuario_mod: Optional[str] = None
+    par_sis_fecha_mod: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PaginatedParametrosSistema(BaseModel):
+    total: int
+    items: List[ParametrosSistemaResponse]

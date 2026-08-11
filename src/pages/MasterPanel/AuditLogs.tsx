@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { adminMasterService } from '../../services/adminMaster';
 import type { AuditoriaAdmin } from '../../services/adminMaster';
 import { 
@@ -10,37 +10,63 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const PAGE_SIZE = 20;
+
+const today = () => new Date().toISOString().split('T')[0];
+
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditoriaAdmin[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    loadLogs();
-  }, []);
+  // Date filters - default: today
+  const [fechaDesde, setFechaDesde] = useState(today());
+  const [fechaHasta, setFechaHasta] = useState(today());
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await adminMasterService.getAuditLogs();
-      setLogs(data);
+      const data = await adminMasterService.getAuditLogs({
+        skip: page * PAGE_SIZE,
+        limit: PAGE_SIZE,
+        fecha_desde: fechaDesde || undefined,
+        fecha_hasta: fechaHasta || undefined,
+        search: search || undefined,
+      });
+      setLogs(data.items || []);
+      setTotal(data.total || 0);
     } catch (error) {
       toast.error('Error al cargar logs de auditoría');
     } finally {
       setLoading(false);
     }
+  }, [page, fechaDesde, fechaHasta, search]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  // Reset to page 0 when filters change
+  const handleFilterChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPage(0);
+    setter(e.target.value);
   };
 
-  const filteredLogs = logs.filter(log => 
-    log.detalle?.toLowerCase().includes(search.toLowerCase()) ||
-    log.accion.toLowerCase().includes(search.toLowerCase()) ||
-    log.admin?.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPage(0);
+    setSearch(e.target.value);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const getActionColor = (accion: string) => {
     switch (accion) {
@@ -65,19 +91,49 @@ export default function AuditLogsPage() {
       </div>
 
       <div className="bg-background border border-border rounded-3xl overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
-            <ClipboardList className="w-5 h-5 text-muted-foreground" /> Registros de Actividad
-          </h3>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Buscar por detalle, acción o admin..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-card/50 border border-border rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-96 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-foreground"
-            />
+        {/* Filters bar */}
+        <div className="p-6 border-b border-border flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
+              <ClipboardList className="w-5 h-5 text-muted-foreground" /> Registros de Actividad
+            </h3>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input 
+                type="text" 
+                placeholder="Buscar por detalle, acción o recurso..." 
+                value={search}
+                onChange={handleSearchChange}
+                className="bg-card/50 border border-border rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-80 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-foreground"
+              />
+            </div>
+          </div>
+
+          {/* Date range */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Desde</label>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={handleFilterChange(setFechaDesde)}
+                className="bg-card/50 border border-border rounded-xl px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-foreground"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Hasta</label>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={handleFilterChange(setFechaHasta)}
+                className="bg-card/50 border border-border rounded-xl px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-foreground"
+              />
+            </div>
+            <span className="text-xs text-muted-foreground ml-auto">
+              Total: <span className="font-semibold text-foreground">{total}</span> registros
+            </span>
           </div>
         </div>
 
@@ -96,16 +152,16 @@ export default function AuditLogsPage() {
             <tbody className="divide-y divide-gray-900">
               {loading ? (
                 <tr><td colSpan={6} className="px-8 py-20 text-center animate-pulse text-gray-500">Cargando bitácora de seguridad...</td></tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr><td colSpan={6} className="px-8 py-20 text-center text-gray-500">No hay registros que coincidan con la búsqueda.</td></tr>
-              ) : filteredLogs.map((log) => (
+              ) : logs.length === 0 ? (
+                <tr><td colSpan={6} className="px-8 py-20 text-center text-gray-500">No hay registros para el rango de fechas seleccionado.</td></tr>
+              ) : logs.map((log) => (
                 <>
                   <tr key={log.id} className="hover:bg-card/40 transition-colors group">
                     <td className="px-8 py-5 whitespace-nowrap">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="w-3.5 h-3.5 text-gray-600" />
                         <span className="text-xs font-medium">
-                          {new Date(log.fecha).toLocaleString()}
+                          {new Date(log.fecha).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                       </div>
                     </td>
@@ -164,6 +220,32 @@ export default function AuditLogsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="p-5 border-t border-border flex items-center justify-between bg-card/10">
+          <span className="text-xs text-muted-foreground">
+            Mostrando {total === 0 ? 0 : page * PAGE_SIZE + 1} al {Math.min((page + 1) * PAGE_SIZE, total)} de {total} registros
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-40 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-medium px-2">
+              Página {page + 1} de {totalPages}
+            </span>
+            <button
+              disabled={(page + 1) * PAGE_SIZE >= total}
+              onClick={() => setPage(p => p + 1)}
+              className="p-2 border border-border rounded-lg hover:bg-muted disabled:opacity-40 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

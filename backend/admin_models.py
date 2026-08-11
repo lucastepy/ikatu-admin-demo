@@ -133,3 +133,32 @@ class SegEmailLog(Base):
     log_estado = Column(String(20), default='PENDIENTE') # PENDIENTE, ENVIADO, ERROR
     log_error = Column(Text, nullable=True)
     log_tenantId = Column("log_tenantid", UUID(as_uuid=True), nullable=True)
+
+class ParametrosSistema(Base):
+    __tablename__ = "parametros_sistema"
+    __table_args__ = {"schema": "public"}
+    
+    par_sis_id = Column(Integer, primary_key=True, index=True)
+    par_sis_codigo = Column(String(50), nullable=False, unique=True)
+    par_sis_descripcion = Column(String(150), nullable=False)
+    par_sis_valor = Column(Text, nullable=False)
+    par_sis_tenantid = Column(String(50), nullable=False)
+    par_sis_adjunta_archivo = Column(Boolean, default=False)
+    par_sis_usuario_alta = Column(String(100))
+    par_sis_fecha_alta = Column(DateTime(timezone=True), server_default=func.now())
+    par_sis_usuario_mod = Column(String(100))
+    par_sis_fecha_mod = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class RestriccionCampo(Base):
+    __tablename__ = "restricciones_campos"
+    __table_args__ = {"schema": "public"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tabla = Column(String(100), nullable=False)
+    columna = Column(String(100), nullable=False)
+    oculto = Column(Boolean, default=False)
+    editable = Column(Boolean, default=True)
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+    tenant = Column(String(50))
+

@@ -78,6 +78,7 @@ export interface RestriccionCampo {
   columna: string;
   oculto: boolean;
   editable: boolean;
+  tenant?: string;
   creado_en?: string;
 }
 
@@ -98,6 +99,25 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Add response interceptor to handle 401 Unauthorized globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (error.config?.url?.includes('/admin')) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        window.location.href = '/admin/login';
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const adminMasterService = {
   // Planes
@@ -130,7 +150,8 @@ export const adminMasterService = {
   updateAdminProfile: (data: { nombre?: string, password?: string }) => api.put('/admin/profile', data).then(res => res.data),
 
   // Audit Logs
-  getAuditLogs: () => api.get('/admin/audit-logs').then(res => res.data),
+  getAuditLogs: (params?: { skip?: number; limit?: number; fecha_desde?: string; fecha_hasta?: string; search?: string }) =>
+    api.get('/admin/audit-logs', { params }).then(res => res.data),
 
   // DB Schemas
   getSchemas: () => api.get('/admin/db-schemas').then(res => res.data),
@@ -142,12 +163,22 @@ export const adminMasterService = {
   deleteSistema: (id: number) => api.delete(`/admin/sistemas/${id}`).then(res => res.data),
 
   // Restricciones de Campos
-  getRestricciones: () => api.get('/admin/restricciones').then(res => res.data),
-  createRestriccion: (data: any) => api.post('/admin/restricciones', data).then(res => res.data),
-  updateRestriccion: (id: number, data: any) => api.put(`/admin/restricciones/${id}`, data).then(res => res.data),
-  deleteRestriccion: (id: number) => api.delete(`/admin/restricciones/${id}`).then(res => res.data),
+  getRestricciones: (params?: any) => api.get('/admin/restricciones-campos', { params }).then(res => res.data),
+  createRestriccion: (data: any) => api.post('/admin/restricciones-campos', data).then(res => res.data),
+  updateRestriccion: (id: number, data: any) => api.put(`/admin/restricciones-campos/${id}`, data).then(res => res.data),
+  deleteRestriccion: (id: number) => api.delete(`/admin/restricciones-campos/${id}`).then(res => res.data),
+  getRestriccionTenants: () => api.get('/admin/restricciones-campos/tenants').then(res => res.data),
+  getRestriccionTables: (schema: string) => api.get('/admin/restricciones-campos/tables', { params: { schema } }).then(res => res.data),
+  getRestriccionColumns: (schema: string, table: string) => api.get('/admin/restricciones-campos/columns', { params: { schema, table } }).then(res => res.data),
 
   // Metadata
   getMetadataTables: () => api.get('/admin/db-metadata/tables').then(res => res.data),
   getMetadataColumns: (table: string) => api.get(`/admin/db-metadata/tables/${table}/columns`).then(res => res.data),
+
+  // Parámetros del Sistema
+  getParametrosSistema: (skip = 0, limit = 10, search = '', tenant = '') => 
+    api.get(`/admin/parametros-sistema?skip=${skip}&limit=${limit}&search=${encodeURIComponent(search)}&tenant=${encodeURIComponent(tenant)}`).then(res => res.data),
+  createParametroSistema: (data: any) => api.post('/admin/parametros-sistema', data).then(res => res.data),
+  updateParametroSistema: (id: number, data: any) => api.put(`/admin/parametros-sistema/${id}`, data).then(res => res.data),
+  deleteParametroSistema: (id: number) => api.delete(`/admin/parametros-sistema/${id}`).then(res => res.data),
 };
