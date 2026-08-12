@@ -9,12 +9,12 @@ from datetime import date
 
 router = APIRouter(prefix="/api/integration", tags=["Integration API"])
 
-def verify_api_key(x_api_key: str = Header(...)):
+def verify_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
     expected_api_key = os.getenv("ADMIN_API_KEY", "ikatu_secret_integration_key_2026")
-    if x_api_key != expected_api_key:
+    if not x_api_key or x_api_key != expected_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key"
+            detail="Invalid or missing API Key"
         )
     return x_api_key
 
@@ -60,7 +60,6 @@ def verify_tenant(slug: str, api_key: str = Depends(verify_api_key), db: Session
 def get_parametro_sistema(
     codigo: str, 
     tenant: str, 
-    api_key: str = Depends(verify_api_key), 
     db: Session = Depends(get_db)
 ):
     """
