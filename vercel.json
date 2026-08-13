@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/**/*.py": {
-      "regions": ["fra1"],
+      "regions": ["gru1"],
       "excludeFiles": "{node_modules/**,dist/**,src/**,public/**,*.png,*.mp4}"
     }
   },
